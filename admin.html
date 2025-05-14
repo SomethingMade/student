@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Admin - Add Course</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js"></script>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+    import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+    import { getDatabase, ref, set, get } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBOyZ3As4GTuNvjemvPF_SpsC6m6vqtNhc",
+      authDomain: "fire-b-a8878.firebaseapp.com",
+      databaseURL: "https://fire-b-a8878.firebaseio.com",
+      projectId: "fire-b-a8878",
+      storageBucket: "fire-b-a8878.firebasestorage.app",
+      messagingSenderId: "658673187627",
+      appId: "1:658673187627:web:32699cbc33e85f4bafa36e",
+      measurementId: "G-2505EVBRWX"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getDatabase(app);
+
+    onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        window.location.href = 'login.html';
+        return;
+      }
+
+      const userRef = ref(db, 'users/' + user.uid);
+      const snapshot = await get(userRef);
+      const userData = snapshot.val();
+      if (!userData || userData.role !== 'admin') {
+        window.location.href = 'login.html';
+        return;
+      }
+    });
+
+    window.addCourse = async function () {
+      const courseName = document.getElementById('courseName').value.trim();
+      const description = document.getElementById('description').value.trim();
+      const price = document.getElementById('price').value.trim();
+      const category = document.getElementById('category').value.trim();
+      const duration = document.getElementById('duration').value.trim();
+      const level = document.getElementById('level').value;
+      const imageUrl = document.getElementById('imageUrl').value.trim();
+      const pdfUrl = document.getElementById('pdfUrl').value.trim();
+      const error = document.getElementById('error');
+
+      if (!courseName || !description || !price || !category || !duration || !level) {
+        error.textContent = "Please fill in all required fields.";
+        return;
+      }
+
+      try {
+        const user = auth.currentUser;
+        if (!user) {
+          alert("You must be logged in to add a course.");
+          window.location.href = 'login.html';
+          return;
+        }
+
+        const userRef = ref(db, 'users/' + user.uid);
+        const snapshot = await get(userRef);
+        const userData = snapshot.val();
+        if (!userData || userData.role !== 'admin') {
+          alert("Only admins can add courses.");
+          window.location.href = 'login.html';
+          return;
+        }
+
+        const courseId = Date.now().toString();
+        const courseRef = ref(db, 'courses/' + courseId);
+        await set(courseRef, {
+          name: courseName,
+          description: description,
+          price: parseFloat(price),
+          category: category,
+          duration: duration,
+          level: level,
+          imageUrl: imageUrl || "",
+          pdfUrl: pdfUrl || "",
+          createdAt: new Date().toISOString()
+        });
+
+        alert("Course added successfully!");
+
+        document.getElementById('courseName').value = '';
+        document.getElementById('description').value = '';
+        document.getElementById('price').value = '';
+        document.getElementById('category').value = '';
+        document.getElementById('duration').value = '';
+        document.getElementById('level').value = '';
+        document.getElementById('imageUrl').value = '';
+        document.getElementById('pdfUrl').value = '';
+        error.textContent = '';
+      } catch (err) {
+        error.textContent = err.message;
+      }
+    };
+  </script>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 flex justify-center items-center min-h-screen p-4">
+  <div class="bg-white p-8 rounded shadow-md w-full max-w-md">
+    <h2 class="text-2xl font-bold mb-4">Add New Course</h2>
+    <input id="courseName" type="text" placeholder="Course Name" class="w-full border mb-4 p-2 rounded">
+    <textarea id="description" placeholder="Course Description" class="w-full border mb-4 p-2 rounded"></textarea>
+    <input id="price" type="number" placeholder="Course Price (ZAR)" class="w-full border mb-4 p-2 rounded">
+    <input id="category" type="text" placeholder="Course Category" class="w-full border mb-4 p-2 rounded">
+    <input id="duration" type="text" placeholder="Course Duration (e.g., 6 weeks)" class="w-full border mb-4 p-2 rounded">
+    <select id="level" class="w-full border mb-4 p-2 rounded">
+      <option value="">Select Level</option>
+      <option value="Beginner">Beginner</option>
+      <option value="Intermediate">Intermediate</option>
+      <option value="Advanced">Advanced</option>
+    </select>
+    <input id="imageUrl" type="text" placeholder="Image URL (optional)" class="w-full border mb-4 p-2 rounded">
+    <input id="pdfUrl" type="text" placeholder="Course PDF URL (optional)" class="w-full border mb-4 p-2 rounded">
+    <button onclick="addCourse()" class="bg-blue-600 text-white px-4 py-2 rounded w-full">Add Course</button>
+    <p id="error" class="text-red-500 mt-4"></p>
+  </div>
+</body>
+</html>
