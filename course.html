@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Course Details</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.emailjs.com/dist/email.min.js"></script>
+</head>
+<body class="bg-gray-100 min-h-screen p-4">
+  <div class="max-w-4xl mx-auto">
+    <div class="bg-white p-6 rounded shadow mb-6">
+      <h1 id="courseTitle" class="text-2xl font-bold mb-2">Loading...</h1>
+      <p id="courseDescription" class="text-gray-700">Please wait...</p>
+      <p id="coursePrice" class="text-gray-600 mt-2"></p>
+      <p id="courseCategory" class="text-gray-600 mt-1"></p>
+      <p id="courseDuration" class="text-gray-600 mt-1"></p>
+      <p id="courseLevel" class="text-gray-600 mt-1"></p>
+    </div>
+
+    <!-- PDF Buttons -->
+    <div id="pdfUrlContainer" class="space-y-3"></div>
+
+    <div id="lessonsContainer" class="mt-6"></div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+    import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+    import { getDatabase, ref, get } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBOyZ3As4GTuNvjemvPF_SpsC6m6vqtNhc",
+      authDomain: "fire-b-a8878.firebaseapp.com",
+      databaseURL: "https://fire-b-a8878.firebaseio.com",
+      projectId: "fire-b-a8878",
+      storageBucket: "fire-b-a8878.appspot.com",
+      messagingSenderId: "658673187627",
+      appId: "1:658673187627:web:32699cbc33e85f4bafa36e"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getDatabase(app);
+
+    emailjs.init("PwPAdgmJy4lqqHCXXnoy9"); // Your EmailJS User ID
+
+    const params = new URLSearchParams(window.location.search);
+    const courseId = params.get("id");
+
+    onAuthStateChanged(auth, async (user) => {
+      if (!user) return window.location.href = "login.html";
+
+      const enrolledRef = ref(db, `users/${user.uid}/enrolledCourses`);
+      const enrolledSnap = await get(enrolledRef);
+      const enrolledCourses = enrolledSnap.val() || [];
+
+      if (!enrolledCourses.includes(courseId)) {
+        alert("You're not enrolled in this course.");
+        window.location.href = "student_dashboard.html";
+        return;
+      }
+
+      loadCourseDetails(courseId, user.email);
+    });
+
+    async function loadCourseDetails(courseId, userEmail) {
+      const snapshot = await get(ref(db, "courses/" + courseId));
+      const course = snapshot.val();
+      if (!course) return;
+
+      document.getElementById("courseTitle").innerText = course.name;
+      document.getElementById("courseDescription").innerText = course.description;
+      document.getElementById("coursePrice").innerText = `💵 Price: R${course.price}`;
+      document.getElementById("courseCategory").innerText = `📚 Category: ${course.category}`;
+      document.getElementById("courseDuration").innerText = `⏱️ Duration: ${course.duration} hrs`;
+      document.getElementById("courseLevel").innerText = `🎯 Level: ${course.level}`;
+
+      const pdfUrlContainer = document.getElementById("pdfUrlContainer");
+      if (course.pdfUrl) {
+        pdfUrlContainer.innerHTML = `
+          <a href="${course.pdfUrl}" target="_blank" class="bg-black text-white px-6 py-2 rounded-full inline-flex items-center">
+            <i class="fas fa-download mr-2"></i> Download PDF
+          </a>
+          <button id="sendPdf" class="bg-blue-600 text-white px-6 py-2 rounded-full inline-flex items-center">
+            <i class="fas fa-paper-plane mr-2"></i> Send to Email
+          </button>
+        `;
+
+        document.getElementById("sendPdf").addEventListener("click", () => {
+          sendPdfToEmail(userEmail, course.pdfUrl);
+        });
+      }
+
+      const lessonsContainer = document.getElementById("lessonsContainer");
+      lessonsContainer.innerHTML = "";
+
+      if (course.lessons) {
+        Object.values(course.lessons).forEach((lesson) => {
+          const div = document.createElement("div");
+          div.className = "mb-6 p-4 bg-white rounded shadow";
+
+          let html = `<h3 class="text-lg font-bold mb-2">${lesson.title}</h3>`;
+
+          if (lesson.type === "video") {
+            html += `<iframe src="${lesson.url}" class="w-full h-64 rounded" frameborder="0" allowfullscreen></iframe>`;
+          } else if (lesson.type === "pdf") {
+            html += `
+              <iframe src="${lesson.url}" class="w-full h-96 border rounded" frameborder="0"></iframe>
+              <a href="${lesson.url}" download class="mt-4 inline-block bg-black text-white px-6 py-2 rounded-full flex items-center justify-center">
+                <i class="fas fa-download mr-2"></i> Download PDF
+              </a>
+            `;
+          }
+
+          div.innerHTML = html;
+          lessonsContainer.appendChild(div);
+        });
+      }
+    }
+
+    function sendPdfToEmail(email, pdfUrl) {
+      emailjs.send("service_9ez0pp6", "template_uyk01pi", {
+        to_email: email,
+        message: `Here is your course PDF: ${pdfUrl}`
+      }).then(() => {
+        alert("📧 PDF link sent to your email!");
+      }).catch((err) => {
+        alert("Failed to send email.");
+        console.error(err);
+      });
+    }
+  </script>
+</body>
+</html>
