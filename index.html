@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Sign Up</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+    import { getAuth, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+    import { getDatabase, ref, set } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBOyZ3As4GTuNvjemvPF_SpsC6m6vqtNhc",
+      authDomain: "fire-b-a8878.firebaseapp.com",
+      databaseURL: "https://fire-b-a8878.firebaseio.com",
+      projectId: "fire-b-a8878",
+      storageBucket: "fire-b-a8878.firebasestorage.app",
+      messagingSenderId: "658673187627",
+      appId: "1:658673187627:web:32699cbc33e85f4bafa36e",
+      measurementId: "G-2505EVBRWX"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getDatabase(app);
+
+    window.signup = async function () {
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
+      const role = document.getElementById('role').value;
+      const error = document.getElementById('error');
+      const spinner = document.getElementById('spinner');
+      const button = document.getElementById('signupButton');
+
+      error.textContent = "";
+      spinner.classList.remove("hidden");
+      button.disabled = true;
+
+      try {
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        const user = userCredential.user;
+
+        const userRef = ref(db, 'users/' + user.uid);
+        await set(userRef, {
+          email: email,
+          role: role
+        });
+
+        window.location.href = role === 'admin' ? 'admin.html' : 'student_dashboard.html';
+      } catch (err) {
+        error.textContent = err.message;
+      } finally {
+        spinner.classList.add("hidden");
+        button.disabled = false;
+      }
+    };
+  </script>
+</head>
+<body class="bg-gradient-to-br from-blue-100 to-indigo-200 min-h-screen flex items-center justify-center px-4">
+  <div class="bg-white p-8 rounded-2xl shadow-2xl max-w-md w-full space-y-6 transition-transform duration-300">
+    <h2 class="text-3xl font-extrabold text-center text-indigo-700">Create Your Account</h2>
+    <div class="space-y-4">
+      <div>
+        <label class="block mb-1 text-sm text-gray-700">Email</label>
+        <input id="email" type="email" placeholder="you@example.com" class="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"/>
+      </div>
+      <div>
+        <label class="block mb-1 text-sm text-gray-700">Password</label>
+        <input id="password" type="password" placeholder="••••••••" class="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"/>
+      </div>
+      <div>
+        <label class="block mb-1 text-sm text-gray-700">Select Role</label>
+        <select id="role" class="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
+          <option value="student">Student</option>
+          <option value="admin">Admin</option>
+        </select>
+      </div>
+      <button id="signupButton" onclick="signup()" class="w-full bg-indigo-600 text-white font-semibold py-2 rounded-md hover:bg-indigo-700 transition flex items-center justify-center gap-2">
+        <svg id="spinner" class="hidden animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l5-5-5-5v4a12 12 0 00-12 12h4z"></path>
+        </svg>
+        Sign Up
+      </button>
+      <p id="error" class="text-sm text-red-500"></p>
+    </div>
+    <p class="text-center text-sm text-gray-600">
+      Already have an account?
+      <a href="login.html" class="text-indigo-600 hover:underline">Sign In</a>
+    </p>
+  </div>
+</body>
+</html>
