@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Student Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script type="module">
+    // Firebase imports and config
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+    import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+    import { getDatabase, ref, get, set } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBOyZ3As4GTuNvjemvPF_SpsC6m6vqtNhc",
+      authDomain: "fire-b-a8878.firebaseapp.com",
+      databaseURL: "https://fire-b-a8878.firebaseio.com",
+      projectId: "fire-b-a8878",
+      storageBucket: "fire-b-a8878.firebasestorage.app",
+      messagingSenderId: "658673187627",
+      appId: "1:658673187627:web:32699cbc33e85f4bafa36e",
+      measurementId: "G-2505EVBRWX"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getDatabase(app);
+    let userData = null;
+    let allCourses = {};
+
+    onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        const userRef = ref(db, 'users/' + user.uid);
+        const snapshot = await get(userRef);
+        userData = snapshot.val();
+        if (userData) {
+          document.getElementById('welcomeMessage').innerText = `Welcome, ${userData.name}`;
+          document.getElementById('email').innerText = `Email: ${userData.email}`;
+          await loadAllCourses();
+          displayCourses(user.uid);
+          displayEnrolledCourses(user.uid);
+        }
+      } else {
+        window.location.href = 'login.html';
+      }
+    });
+
+    async function loadAllCourses() {
+      const coursesRef = ref(db, 'courses/');
+      const snapshot = await get(coursesRef);
+      allCourses = snapshot.val() || {};
+    }
+
+    async function displayCourses(studentId) {
+      const container = document.getElementById('coursesContainer');
+      container.innerHTML = "";
+
+      const enrolledRef = ref(db, 'users/' + studentId + '/enrolledCourses');
+      const enrolledSnap = await get(enrolledRef);
+      const enrolledCourses = enrolledSnap.val() || [];
+
+      Object.keys(allCourses).forEach(courseId => {
+        const course = allCourses[courseId];
+        const isEnrolled = enrolledCourses.includes(courseId);
+        const courseElement = document.createElement('div');
+        courseElement.className = 'p-5 bg-white rounded-xl shadow-md mb-4 transition hover:shadow-lg';
+
+        courseElement.innerHTML = `
+          <h3 class="text-xl font-bold text-gray-800 mb-2">${course.name}</h3>
+          <p class="text-gray-600 mb-2">${course.description}</p>
+          <p class="text-indigo-600 font-semibold mb-3">Price: R${course.price}</p>
+          <button class="enroll-btn w-full px-4 py-2 rounded-full transition font-medium ${
+            isEnrolled
+              ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
+              : 'bg-indigo-600 text-white hover:bg-indigo-700'
+          }" ${isEnrolled ? 'disabled' : `onclick="enrollInCourse('${courseId}')"`}>
+            ${isEnrolled ? 'Already Enrolled' : 'Enroll'}
+          </button>
+        `;
+        container.appendChild(courseElement);
+      });
+    }
+
+    async function displayEnrolledCourses(studentId) {
+      const container = document.getElementById('enrolledCoursesContainer');
+      container.innerHTML = "";
+
+      const enrolledRef = ref(db, 'users/' + studentId + '/enrolledCourses');
+      const enrolledSnap = await get(enrolledRef);
+      const enrolledCourses = enrolledSnap.val() || [];
+
+      if (enrolledCourses.length === 0) {
+        container.innerHTML = "<p class='text-gray-500'>You haven't enrolled in any courses yet.</p>";
+        return;
+      }
+
+      enrolledCourses.forEach(courseId => {
+        const course = allCourses[courseId];
+        if (!course) return;
+
+        const courseElement = document.createElement('a');
+        courseElement.href = `course.html?id=${courseId}`;
+        courseElement.className = 'block p-4 bg-green-100 hover:bg-green-200 rounded-xl mb-4 transition';
+
+        courseElement.innerHTML = `
+          <h3 class="text-lg font-semibold text-green-800">${course.name}</h3>
+          <p class="text-green-700 text-sm">${course.description}</p>
+        `;
+        container.appendChild(courseElement);
+      });
+    }
+
+    window.enrollInCourse = async function(courseId) {
+      const user = auth.currentUser;
+      if (user) {
+        const enrolledRef = ref(db, 'users/' + user.uid + '/enrolledCourses');
+        const enrolledSnap = await get(enrolledRef);
+        const enrolledCourses = enrolledSnap.val() || [];
+
+        if (!enrolledCourses.includes(courseId)) {
+          enrolledCourses.push(courseId);
+          await set(enrolledRef, enrolledCourses);
+          alert('Successfully enrolled!');
+          displayCourses(user.uid);
+          displayEnrolledCourses(user.uid);
+        } else {
+          alert('You are already enrolled in this course.');
+        }
+      } else {
+        alert('You need to log in first.');
+      }
+    };
+
+    window.logout = function() {
+      signOut(auth).then(() => {
+        window.location.href = 'login.html';
+      }).catch((error) => {
+        console.error('Logout Error:', error);
+      });
+    };
+  </script>
+</head>
+
+<body class="bg-gradient-to-br from-gray-100 to-indigo-50 min-h-screen font-sans">
+  <div class="max-w-5xl mx-auto p-6 space-y-8">
+    <!-- Welcome Section -->
+    <div class="bg-white p-6 rounded-2xl shadow-md border border-gray-200">
+      <h2 id="welcomeMessage" class="text-3xl font-bold text-indigo-700">Welcome</h2>
+      <p id="email" class="text-gray-600 mt-1">Email: Loading...</p>
+    </div>
+
+    <!-- Enrolled Courses -->
+    <div class="bg-white p-6 rounded-2xl shadow-md border border-gray-200">
+      <h3 class="text-2xl font-semibold text-gray-800 mb-4 border-b pb-2">My Enrolled Courses</h3>
+      <div id="enrolledCoursesContainer"></div>
+    </div>
+
+    <!-- All Courses -->
+    <div class="bg-white p-6 rounded-2xl shadow-md border border-gray-200">
+      <h3 class="text-2xl font-semibold text-gray-800 mb-4 border-b pb-2">Courses Available</h3>
+      <div id="coursesContainer"></div>
+    </div>
+
+    <!-- Log Out Button -->
+    <div class="bg-white p-6 rounded-2xl shadow-md border border-gray-200">
+      <button onclick="logout()" class="bg-red-600 hover:bg-red-700 text-white w-full py-3 rounded-full font-semibold transition">Log Out</button>
+    </div>
+  </div>
+</body>
+</html>
